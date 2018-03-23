@@ -42,7 +42,7 @@ typedef enum {
 
 enum {
 	KWD_IF, KWD_COND, KWD_QUOTE, KWD_LAMBDA, KWD_LET, KWD_DEFINE,
-	KWD_BEGIN, NUM_KEYWORDS
+	KWD_BEGIN, NUM_KEYWORDS, KWD_END
 };
 
 typedef struct _YLispValue *(*YLispBuiltin)(struct _YLispValue *args);
@@ -94,7 +94,7 @@ typedef struct _GCPinnedVariable {
 
 // the keywords
 static const char *keyword_names[] = {
-	"if", "cond", "quote", "lambda", "let", "define", "begin"
+	"if", "cond", "quote", "lambda", "let", "define", "begin","end"
 };
 
 
@@ -640,6 +640,7 @@ static YLispValue *eval_func_call(YLispValue *context, YLispValue *code)
 
 static YLispValue *eval_list_inner(YLispValue *context, YLispValue *code)
 {
+    // fetches the first token
 	YLispValue *first = CAR(code);
 
 	// Special cases:
@@ -649,7 +650,7 @@ static YLispValue *eval_list_inner(YLispValue *context, YLispValue *code)
         // error handling
         if (code != NULL && CDR(code) != NULL && CAR(CDR(code)) != NULL)
         {
-            printf("IN\n"); //DEBUG
+//            printf("IN\n"); //DEBUG
             YLispValue *val = ylisp_eval(context, CAR(CDR(code)));
             assert(val != NULL && (val->type == YLISP_NUMBER
             || val->type == YLISP_BOOLEAN));
@@ -710,6 +711,8 @@ static YLispValue *eval_list_inner(YLispValue *context, YLispValue *code)
 		return result;
 	} else if (first == keywords[KWD_BEGIN]) {
 		return run_function_body(context, CDR(code));
+	} else if (first == keywords[KWD_IF]) {
+        exit(0);
 	}
 
 	return eval_func_call(context, code);
@@ -848,35 +851,6 @@ static YLispValue *builtin_end(YLispValue *args)
 	return NULL;
 }
 
-// my new builtin function if
-//static YLispValue *builtin_if(YLispValue *args)
-//{
-//    if (args != NULL)
-//    {
-//        if (CAR(args) != NULL)
-//        {
-//            if (CAR(args)->v.i)
-//            {
-//                return CAR(CDR(args));
-//            }
-//            else
-//            {
-//                return CAR(CDR(CAR(CDR(args))));
-//            }
-//        } else
-//        {
-//            goto error;
-//        }
-//    } else
-//    {
-//        goto error;
-//    }
-//
-//    error:
-//        printf("error: please give all paths of if-else\n");
-//        exit(1);
-//}
-
 static void define_builtin(char *name, YLispBuiltin callback)
 {
 	YLispValue *builtin = ylisp_value(YLISP_BUILTIN);
@@ -911,7 +885,6 @@ void ylisp_init(void)
 	define_builtin("eval", builtin_eval);
 	define_builtin("print", builtin_print);
 	define_builtin("end", builtin_end); // my add
-//	define_builtin("if", builtin_if); // my add
 }
 
 static char *read_file(char *filename)
