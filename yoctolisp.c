@@ -650,7 +650,6 @@ static YLispValue *eval_list_inner(YLispValue *context, YLispValue *code)
         // error handling
         if (code != NULL && CDR(code) != NULL && CAR(CDR(code)) != NULL)
         {
-//            printf("IN\n"); //DEBUG
             YLispValue *val = ylisp_eval(context, CAR(CDR(code)));
             assert(val != NULL && (val->type == YLISP_NUMBER
             || val->type == YLISP_BOOLEAN));
