@@ -706,7 +706,6 @@ static YLispValue *eval_list_inner(YLispValue *context, YLispValue *code)
 static YLispValue *eval_list(YLispValue *context, YLispValue *code)
 {
 	YLispValue *result = eval_list_inner(context, code);
-
 	// Tail call optimization: expand deferred call.
 	while (result == &deferred_call) {
 		context = deferred_call.v.func.context;
@@ -837,6 +836,35 @@ static YLispValue *builtin_end(YLispValue *args)
 	return NULL;
 }
 
+// my new builtin function if
+static YLispValue *builtin_if(YLispValue *args)
+{
+    if (args != NULL)
+    {
+        if (CAR(args) != NULL)
+        {
+            if (CAR(args)->v.i)
+            {
+                return CAR(CDR(args));
+            }
+            else
+            {
+                return CAR(CDR(CAR(CDR(args))));
+            }
+        } else
+        {
+            goto error;
+        }
+    } else
+    {
+        goto error;
+    }
+
+    error:
+        printf("error: please give all paths of if-else\n");
+        exit(1);
+}
+
 static void define_builtin(char *name, YLispBuiltin callback)
 {
 	YLispValue *builtin = ylisp_value(YLISP_BUILTIN);
@@ -870,7 +898,8 @@ void ylisp_init(void)
 	define_builtin("read", builtin_read);
 	define_builtin("eval", builtin_eval);
 	define_builtin("print", builtin_print);
-	define_builtin("end",builtin_end);
+	define_builtin("end", builtin_end); // my add
+	define_builtin("if", builtin_if); // my add
 }
 
 static char *read_file(char *filename)
@@ -902,7 +931,7 @@ static void process_file(char *filename)
 
 	pin_variable(&code);
 	while ((code = ylisp_parse(&lexer)) != NULL) {
-		//ylisp_print(code); printf("\n");
+		//ylisp_print(code); printf("\n"); //DEBUG
 		ylisp_eval(root_context, code);
 	}
 	unpin_variable(&code);
