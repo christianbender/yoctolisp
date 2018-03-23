@@ -32,7 +32,7 @@ CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #ifdef GC_DEBUG  // How many objects to allocate before triggering a GC?
 #define GC_ALLOC_TRIGGER 1
 #else
-#define GC_ALLOC_TRIGGER 100
+#define GC_ALLOC_TRIGGER 100 // max. alloc elements.
 #endif
 
 typedef enum {
@@ -47,6 +47,7 @@ enum {
 
 typedef struct _YLispValue *(*YLispBuiltin)(struct _YLispValue *args);
 
+// elementar datastructure.
 typedef struct _YLispValue {
 	unsigned int marked :1;
 	unsigned int type :31;
@@ -67,44 +68,55 @@ typedef struct _YLispValue {
 	} v;
 	struct _YLispValue *next;
 } YLispValue;
+
+// makros for the car and cdr pointer
 #define CAR(val) ((val)->v.cell.car)
 #define CDR(val) ((val)->v.cell.cdr)
 
+// enumeration type for describing the tokens.
 typedef enum {
 	TOKEN_OPEN_PAREN, TOKEN_CLOSE_PAREN, TOKEN_LITERAL, TOKEN_QUOTE,
 	TOKEN_ERROR, TOKEN_EOF, TOKEN_PERIOD
 } YLispToken;
 
+// struct for the lexer information
 typedef struct {
 	char *buffer;
 	unsigned int position;
 	YLispValue *value;
 } YLispLexer;
 
+// for the garbage collector
 typedef struct _GCPinnedVariable {
 	YLispValue **variable;
 	struct _GCPinnedVariable *next;
 } GCPinnedVariable;
 
+// the keywords
 static const char *keyword_names[] = {
 	"if", "cond", "quote", "lambda", "let", "define", "begin"
 };
+
 
 static YLispValue *values = NULL;  // All values linked list
 static unsigned int values_alloc_count = 0;  // Allocated since last GC
 static GCPinnedVariable *pinned_vars = NULL;
 
+// list of all keywords.
 static YLispValue *keywords[NUM_KEYWORDS];
 
 // Symbol table; dynamically resizing.
 static YLispValue **symbols = NULL;
 static unsigned int num_symbols = 0;
 
+// context ; enviroment for the lisp interpreter
 static YLispValue *root_context;
 
 // A deferred call, passed up the stack (only one ever exists)
 static YLispValue deferred_call;
 
+// constructor for YLispValue struct
+// the constructor addes the element in the list values
 static YLispValue *ylisp_value(YLispValueType type)
 {
 	YLispValue *result = calloc(1, sizeof(YLispValue));
@@ -115,6 +127,7 @@ static YLispValue *ylisp_value(YLispValueType type)
 	return result;
 }
 
+// constructor for numbers and booleans
 static YLispValue *ylisp_number(YLispValueType type, unsigned int val)
 {
 	YLispValue *result = ylisp_value(type);
@@ -122,6 +135,7 @@ static YLispValue *ylisp_number(YLispValueType type, unsigned int val)
 	return result;
 }
 
+// constructor for a lisp cell
 static YLispValue *ylisp_cons(YLispValue *car, YLispValue *cdr)
 {
 	YLispValue *result = ylisp_value(YLISP_CELL);
@@ -129,8 +143,10 @@ static YLispValue *ylisp_cons(YLispValue *car, YLispValue *cdr)
 	return result;
 }
 
+// prototype
 void ylisp_print(YLispValue *value);
 
+// prints a Lisp list
 static void print_list(YLispValue *value, char *inner)
 {
 	printf("(%s", inner);
@@ -149,6 +165,7 @@ static void print_list(YLispValue *value, char *inner)
 	printf(")");
 }
 
+// prints a single value of type YLispValue
 void ylisp_print(YLispValue *value)
 {
 	if (value == NULL) {
@@ -181,6 +198,7 @@ void ylisp_print(YLispValue *value)
 	}
 }
 
+// compares two YLispValue objects
 static int ylisp_equal(YLispValue *v1, YLispValue *v2)
 {
 	if (v1 == NULL || v2 == NULL) {
@@ -200,6 +218,7 @@ static int ylisp_equal(YLispValue *v1, YLispValue *v2)
 	}
 }
 
+// compares tow YLispValue objects
 static int ylisp_lt(YLispValue *v1, YLispValue *v2)
 {
 	if (v1 == NULL || v2 == NULL || v1->type != v2->type) {
@@ -216,6 +235,7 @@ static int ylisp_lt(YLispValue *v1, YLispValue *v2)
 	}
 }
 
+// marks a YLispValue object
 static void mark_value(YLispValue *value)
 {
 	if (value == NULL || value->marked) {
@@ -264,6 +284,7 @@ static void free_value(YLispValue *value)
 	memset(value, 0xff, sizeof(*value)); free(value);
 }
 
+// removes all not marked elements
 static void sweep(void)
 {
 	YLispValue **v;
@@ -288,6 +309,7 @@ static void sweep(void)
 	}
 }
 
+// garbarge collector
 static void run_gc(void)
 {
 	mark_roots();
@@ -317,6 +339,7 @@ static void unpin_variable(YLispValue **variable)
 	assert(0);
 }
 
+// constructor for a Lisp string
 static YLispValue *string_from_data(const char *data, size_t data_len)
 {
 	YLispValue *value;
@@ -333,6 +356,8 @@ YLispValue *ylisp_symbol_for_name(const char *name, size_t name_len)
 	YLispValue *result, *symname;
 	unsigned int i;
 
+    // makes sure the symbols exists in the symboltable
+    // if it exists then returns it.
 	for (i = 0; i < num_symbols; ++i) {
 		symname = symbols[i]->v.symname;
 		if (strlen(symname->v.s) == name_len
@@ -344,28 +369,34 @@ YLispValue *ylisp_symbol_for_name(const char *name, size_t name_len)
 	result = ylisp_value(YLISP_SYMBOL);
 	result->v.symname = string_from_data(name, name_len);
 
+    // extends the symboltable.
 	symbols = realloc(symbols, sizeof(*symbols) * (num_symbols + 1));
 	assert(symbols != NULL);
 	return symbols[num_symbols++] = result;
 }
 
+// constructor for a lexer object.
 void ylisp_init_lexer(YLispLexer *lexer, char *buf)
 {
 	lexer->buffer = buf;
 	lexer->position = 0;
 }
 
+// checks whether c is a symbolname character
 static int is_sym_char(char c)
 {
 	return !isspace(c) && strchr("()[]{}\",'`;#|\\", c) == NULL;
 }
 
+// defines the next character of the input buffer
 #define c lexer->buffer[lexer->position]
 
+// reads a string from the buffer
 static YLispToken ylisp_read_string(YLispLexer *lexer)
 {
 	unsigned int start = lexer->position;
 
+    // collects the "
 	while (c != '\0' && c != '"') {
 		++lexer->position;
 	}
@@ -378,6 +409,7 @@ static YLispToken ylisp_read_string(YLispLexer *lexer)
 	return TOKEN_LITERAL;
 }
 
+// reads a token from the buffer
 YLispToken ylisp_read_token(YLispLexer *lexer)
 {
 	while (c != '\0') {
@@ -431,10 +463,13 @@ YLispToken ylisp_read_token(YLispLexer *lexer)
 	}
 }
 
+// undefines the identifier c
 #undef c
 
+// prototype
 static YLispValue *parse_from_token(YLispLexer *lexer, YLispToken token);
 
+// parses a Lisp list in a C datastructure
 static YLispValue *parse_list(YLispLexer *lexer)
 {
 	YLispValue *result, **rover=&result;
@@ -463,6 +498,7 @@ static YLispValue *parse_list(YLispLexer *lexer)
 	return result;
 }
 
+// parses a quoted list
 static YLispValue *parse_quoted(YLispLexer *lexer)
 {
 	YLispToken token = ylisp_read_token(lexer);
@@ -698,6 +734,10 @@ YLispValue *ylisp_eval(YLispValue *context, YLispValue *code)
 	return code;
 }
 
+/*
+    builtin functions
+*/
+
 static YLispValue *builtin_add(YLispValue *args)
 {
 	return ylisp_number(YLISP_NUMBER,
@@ -792,6 +832,8 @@ static void define_builtin(char *name, YLispBuiltin callback)
 void ylisp_init(void)
 {
 	unsigned int i;
+
+	// registers the keywords in the keyword list
 	for (i = 0; i < NUM_KEYWORDS; ++i) {
 		keywords[i] = ylisp_symbol_for_name(
 		    keyword_names[i], strlen(keyword_names[i]));
