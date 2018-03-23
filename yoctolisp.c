@@ -837,33 +837,33 @@ static YLispValue *builtin_end(YLispValue *args)
 }
 
 // my new builtin function if
-static YLispValue *builtin_if(YLispValue *args)
-{
-    if (args != NULL)
-    {
-        if (CAR(args) != NULL)
-        {
-            if (CAR(args)->v.i)
-            {
-                return CAR(CDR(args));
-            }
-            else
-            {
-                return CAR(CDR(CAR(CDR(args))));
-            }
-        } else
-        {
-            goto error;
-        }
-    } else
-    {
-        goto error;
-    }
-
-    error:
-        printf("error: please give all paths of if-else\n");
-        exit(1);
-}
+//static YLispValue *builtin_if(YLispValue *args)
+//{
+//    if (args != NULL)
+//    {
+//        if (CAR(args) != NULL)
+//        {
+//            if (CAR(args)->v.i)
+//            {
+//                return CAR(CDR(args));
+//            }
+//            else
+//            {
+//                return CAR(CDR(CAR(CDR(args))));
+//            }
+//        } else
+//        {
+//            goto error;
+//        }
+//    } else
+//    {
+//        goto error;
+//    }
+//
+//    error:
+//        printf("error: please give all paths of if-else\n");
+//        exit(1);
+//}
 
 static void define_builtin(char *name, YLispBuiltin callback)
 {
@@ -899,7 +899,7 @@ void ylisp_init(void)
 	define_builtin("eval", builtin_eval);
 	define_builtin("print", builtin_print);
 	define_builtin("end", builtin_end); // my add
-	define_builtin("if", builtin_if); // my add
+//	define_builtin("if", builtin_if); // my add
 }
 
 static char *read_file(char *filename)
