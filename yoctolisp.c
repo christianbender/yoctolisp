@@ -646,14 +646,26 @@ static YLispValue *eval_list_inner(YLispValue *context, YLispValue *code)
 	if (first == keywords[KWD_QUOTE]) {
 		return CAR(CDR(code));
 	} else if (first == keywords[KWD_IF]) {
-		YLispValue *val = ylisp_eval(context, CAR(CDR(code)));
-		assert(val != NULL && (val->type == YLISP_NUMBER
-		                    || val->type == YLISP_BOOLEAN));
-		if (val->v.i) {
-			return defer_eval(context, CAR(CDR(CDR(code))));
-		} else if (CDR(CDR(CDR(code))) != NULL) {
-			return defer_eval(context, CAR(CDR(CDR(CDR(code)))));
-		}
+        // error handling
+        if (code != NULL && CDR(code) != NULL && CAR(CDR(code)) != NULL)
+        {
+            printf("IN\n"); //DEBUG
+            YLispValue *val = ylisp_eval(context, CAR(CDR(code)));
+            assert(val != NULL && (val->type == YLISP_NUMBER
+            || val->type == YLISP_BOOLEAN));
+            if (val->v.i)
+            {
+                return defer_eval(context, CAR(CDR(CDR(code))));
+            }
+            else if (CDR(CDR(CDR(code))) != NULL)
+            {
+                return defer_eval(context, CAR(CDR(CDR(CDR(code)))));
+            }
+        } else
+        {
+            printf("error: please give all paths of if-else\n");
+            exit(1);
+        }
 	} else if (first == keywords[KWD_COND]) {
 		YLispValue *tests, *val;
 		for (tests = CDR(code); tests != NULL; tests = CDR(tests)) {
