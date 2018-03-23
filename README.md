@@ -19,4 +19,5 @@ Yoctolisp is a Lisp interpreter written in a weekend.
 - Added some comments in the code.  
 - Changed the ```README.md```.  
 - Added a built-in function ```(end)``` for termination the program.  
+- Added a built-in function ```(if (condition) (then)  (else))```  
 
