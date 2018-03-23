@@ -366,6 +366,7 @@ YLispValue *ylisp_symbol_for_name(const char *name, size_t name_len)
 		}
 	}
 
+    // creates a new symbol
 	result = ylisp_value(YLISP_SYMBOL);
 	result->v.symname = string_from_data(name, name_len);
 
@@ -821,6 +822,21 @@ static YLispValue *builtin_print(YLispValue *args)
 	return NULL;
 }
 
+// my new builtin function end
+// terminates the program
+static YLispValue *builtin_end(YLispValue *args)
+{
+    if (!args)
+    {
+        exit(0);
+    } else
+    {
+        printf("end don't needed arguments!\n");
+        exit(0);
+    }
+	return NULL;
+}
+
 static void define_builtin(char *name, YLispBuiltin callback)
 {
 	YLispValue *builtin = ylisp_value(YLISP_BUILTIN);
@@ -854,6 +870,7 @@ void ylisp_init(void)
 	define_builtin("read", builtin_read);
 	define_builtin("eval", builtin_eval);
 	define_builtin("print", builtin_print);
+	define_builtin("end",builtin_end);
 }
 
 static char *read_file(char *filename)
