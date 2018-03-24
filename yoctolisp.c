@@ -42,7 +42,7 @@ typedef enum {
 
 enum {
 	KWD_IF, KWD_COND, KWD_QUOTE, KWD_LAMBDA, KWD_LET, KWD_DEFINE,
-	KWD_BEGIN, NUM_KEYWORDS, KWD_END
+	KWD_BEGIN, NUM_KEYWORDS = 8, KWD_END = 7
 };
 
 typedef struct _YLispValue *(*YLispBuiltin)(struct _YLispValue *args);
@@ -91,6 +91,8 @@ typedef struct _GCPinnedVariable {
 	YLispValue **variable;
 	struct _GCPinnedVariable *next;
 } GCPinnedVariable;
+
+#define NKEYWORDS 8
 
 // the keywords
 static const char *keyword_names[] = {
@@ -356,12 +358,16 @@ YLispValue *ylisp_symbol_for_name(const char *name, size_t name_len)
 	YLispValue *result, *symname;
 	unsigned int i;
 
+//	printf("\n\tylisp_symbol_for_name: %s ",name); //DEBUG
+
     // makes sure the symbols exists in the symboltable
     // if it exists then returns it.
 	for (i = 0; i < num_symbols; ++i) {
+//        printf(" -- i=%d ",i); //DEBUG
 		symname = symbols[i]->v.symname;
 		if (strlen(symname->v.s) == name_len
 		 && memcmp(symname->v.s, name, name_len) == 0) {
+//            printf(" -- IN if\n"); //DEBUG
 			return symbols[i];
 		}
 	}
@@ -453,6 +459,7 @@ YLispToken ylisp_read_token(YLispLexer *lexer)
 		}
 		return TOKEN_LITERAL;
 	} else if (is_sym_char(c)) {
+//        printf("\tylisp_read_token: c=%c\n",c); //DEBUG
 		unsigned int start = lexer->position;
 		while (c != '\0' && is_sym_char(c))
 			++lexer->position;
@@ -516,6 +523,7 @@ static YLispValue *parse_from_token(YLispLexer *lexer, YLispToken token)
 		case TOKEN_QUOTE:
 			return parse_quoted(lexer);
 		case TOKEN_LITERAL:
+//            printf("\tparse_from_token: %d\n",lexer->value->type); //DEBUG
 			return lexer->value;
 		default:
 			break;
@@ -538,10 +546,15 @@ static YLispValue *eval_variable(YLispValue *context, YLispValue *var)
 	while (context != NULL) {
 		for (v = context->v.context.vars; v != NULL; v = CDR(v)) {
 			if (CAR(CAR(v)) == var) {
+                printf("\teval_variable: ");
+//                ylisp_print(CAR(CAR(v))); //DEBUG
+                printf("\n"); //DEBUG
 				return CDR(CAR(v));
 			}
 		}
 		context = context->v.context.parent;
+//		ylisp_print(context); //DEBUG
+//		printf("\n"); //DEBUG
 	}
 
 	fprintf(stderr, "Undefined variable: %s\n",
@@ -604,14 +617,19 @@ static YLispValue *eval_func_args(YLispValue *context, YLispValue *code)
 static YLispValue *eval_func_call(YLispValue *context, YLispValue *code)
 {
 	YLispValue *func = ylisp_eval(context, CAR(code));
+//	printf("\teval_func_call: "); //DEBUG
+//	ylisp_print(CAR(code));
+//	printf("\n"); // DEBUG
 
 	if (func->type == YLISP_BUILTIN) {
+//        printf("\teval_func_call: YLISP_BUILTIN\n"); //DEBUG
 		YLispValue *result, *args = eval_func_args(context, CDR(code));
 		pin_variable(&args);
 		result = func->v.builtin(args);
 		unpin_variable(&args);
 		return result;
 	} else if (func->type == YLISP_FUNCTION) {
+//        printf("\teval_func_call: YLISP_FUNCTION\n"); //DEBUG
 		YLispValue *n, *c, *result;
 		YLispValue *newcontext = ylisp_value(YLISP_CONTEXT);
 		pin_variable(&newcontext);
@@ -638,8 +656,16 @@ static YLispValue *eval_func_call(YLispValue *context, YLispValue *code)
 	}
 }
 
+
 static YLispValue *eval_list_inner(YLispValue *context, YLispValue *code)
 {
+
+//    printf("\teval_list_inner: "); //DEBUG
+//    ylisp_print(code); printf(" -- ");
+//    ylisp_print(CAR(code)); //DEBUG
+    //printf(" -- %s\n",keywords[KWD_END]);
+//    printf(" --- what is? %s\n",keywords[KWD_END - 1]->v.symname->v.s); //DEBUG
+
     // fetches the first token
 	YLispValue *first = CAR(code);
 
@@ -661,7 +687,7 @@ static YLispValue *eval_list_inner(YLispValue *context, YLispValue *code)
             {
                 return defer_eval(context, CAR(CDR(CDR(CDR(code)))));
             }
-        } else
+        } else // error case
         {
             printf("error: please give all paths of if-else\n");
             exit(1);
@@ -710,7 +736,8 @@ static YLispValue *eval_list_inner(YLispValue *context, YLispValue *code)
 		return result;
 	} else if (first == keywords[KWD_BEGIN]) {
 		return run_function_body(context, CDR(code));
-	} else if (first == keywords[KWD_IF]) {
+	} else if (first == keywords[KWD_END]) {
+//        printf("\t IN else if (first == keywords[KWD_END]) \n"); //DEBUG
         exit(0);
 	}
 
@@ -741,6 +768,7 @@ YLispValue *ylisp_eval(YLispValue *context, YLispValue *code)
 		case YLISP_SYMBOL:  // Variable
 			return eval_variable(context, code);
 		case YLISP_CELL:    // Function call or other.
+//            printf("\tYLISP_CELL\n"); //DEBUG
 			return eval_list(context, code);
 		default:            // Literals.
 			break;
@@ -866,7 +894,13 @@ void ylisp_init(void)
 	for (i = 0; i < NUM_KEYWORDS; ++i) {
 		keywords[i] = ylisp_symbol_for_name(
 		    keyword_names[i], strlen(keyword_names[i]));
+//        if (strcmp(keywords[i]->v.symname->v.s,"end") == 0) {
+//            printf("\n\tylisp_init: i=%d",i); //DEBUG
+//        }
 	}
+
+
+//	printf(" --- len num_symbols %d\n",num_symbols); //DEBUG
 	root_context = ylisp_value(YLISP_CONTEXT);
 	define_builtin("builtin-add", builtin_add);
 	define_builtin("builtin-sub", builtin_sub);
@@ -883,7 +917,7 @@ void ylisp_init(void)
 	define_builtin("read", builtin_read);
 	define_builtin("eval", builtin_eval);
 	define_builtin("print", builtin_print);
-	define_builtin("end", builtin_end); // my add
+//	define_builtin("end", builtin_end); // my add
 }
 
 static char *read_file(char *filename)
@@ -930,7 +964,7 @@ int main(int argc, char *argv[])
 
 	ylisp_init();
 
-	process_file("stdlib.l");
+	//process_file("stdlib.l");
 	process_file(argv[1]);
 
 	return 0;
