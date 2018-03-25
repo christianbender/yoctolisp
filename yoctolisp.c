@@ -546,9 +546,9 @@ static YLispValue *eval_variable(YLispValue *context, YLispValue *var)
 	while (context != NULL) {
 		for (v = context->v.context.vars; v != NULL; v = CDR(v)) {
 			if (CAR(CAR(v)) == var) {
-                printf("\teval_variable: ");
+//                printf("\teval_variable: ");
 //                ylisp_print(CAR(CAR(v))); //DEBUG
-                printf("\n"); //DEBUG
+//                printf("\n"); //DEBUG
 				return CDR(CAR(v));
 			}
 		}
