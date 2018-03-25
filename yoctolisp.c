@@ -737,8 +737,12 @@ static YLispValue *eval_list_inner(YLispValue *context, YLispValue *code)
 	} else if (first == keywords[KWD_BEGIN]) {
 		return run_function_body(context, CDR(code));
 	} else if (first == keywords[KWD_END]) {
-//        printf("\t IN else if (first == keywords[KWD_END]) \n"); //DEBUG
-        exit(0);
+        if (code != NULL && CDR(code) != NULL && CAR(CDR(code)) != NULL) {
+            printf("You don't needed arguments for (end).\n");
+            exit(0);
+        } else {
+            exit(0);
+        }
 	}
 
 	return eval_func_call(context, code);
@@ -964,7 +968,7 @@ int main(int argc, char *argv[])
 
 	ylisp_init();
 
-	//process_file("stdlib.l");
+	process_file("stdlib.l");
 	process_file(argv[1]);
 
 	return 0;
